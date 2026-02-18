@@ -1,275 +1,188 @@
 // integration-example.jsx
-// This file demonstrates how the buggy Rust/WASM module would be used
-// in a Next.js application, causing hydration mismatch errors.
+// DTN (Delay-Tolerant Networking) for Rural Connectivity
+// Example React components for integrating with the rural-dtn-module WASM package.
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 
-// ❌ BUGGY COMPONENT - Causes Hydration Mismatch
-// This component uses the Rust WASM module that generates random values
-export function BuggyHydrationComponent() {
-  // This is called on both server and client, generating different values!
-  const hydrationData = useMemo(() => {
-    // In a real implementation, this would call the WASM module:
-    // const wasmModule = await import('../pkg/hydration_mismatch_module');
-    // return wasmModule.HydrationData.new();
-    
-    // For demonstration, we simulate the WASM module's behavior:
-    return {
-      session_id: generateUUID(),           // ❌ Different on server vs client
-      random_number: Math.random(),         // ❌ Different on server vs client
-      timestamp: Date.now(),                // ❌ Different on server vs client
-      component_key: `comp-${Math.random()}-${Date.now()}`, // ❌ Different
-    };
-  }, []); // Empty deps means this runs once per render context (server + client)
-  
+// ═══════════════════════════════════════════════════════════════════
+// DTN Bundle Display Component
+// Shows a single store-and-forward bundle (message) in the network.
+// ═══════════════════════════════════════════════════════════════════
+
+export function DtnBundleCard({ bundle }) {
   return (
-    <div 
-      className="hydration-component" 
-      data-session={hydrationData.session_id}
-      data-key={hydrationData.component_key}
+    <div
+      style={{
+        padding: '12px 16px',
+        background: '#252b3b',
+        borderRadius: 8,
+        marginBottom: 8,
+        borderLeft: '4px solid #22c55e',
+        fontFamily: 'monospace',
+        fontSize: 14,
+      }}
     >
-      <h2>Hydration Test Component</h2>
-      <p>Session ID: <span id="session-display">{hydrationData.session_id}</span></p>
-      <p>Random Number: <span id="random-display">{hydrationData.random_number.toFixed(10)}</span></p>
-      <p>Timestamp: <span id="timestamp-display">{hydrationData.timestamp}</span></p>
-      <button onClick={handleClick}>Click Me!</button>
-      <div id="click-count">Clicks: 0</div>
+      <div><strong>{bundle.source}</strong> → <strong>{bundle.destination}</strong></div>
+      <div style={{ color: '#94a3b8', marginTop: 4 }}>{bundle.payload}</div>
+      <div style={{ fontSize: 12, marginTop: 4 }}>
+        hops: {bundle.hop_count ?? 0} | id: {bundle.id?.slice(0, 8)}
+      </div>
     </div>
   );
 }
 
-// ❌ ANOTHER BUGGY PATTERN - Random ID in render
-export function BuggyButtonComponent() {
-  // This generates a different ID on server vs client!
-  const buttonId = `btn-${Math.random().toString(36).substr(2, 9)}`;
-  
-  return (
-    <button id={buttonId} onClick={() => alert('Clicked!')}>
-      Button with ID: {buttonId}
-    </button>
-  );
-}
+// ═══════════════════════════════════════════════════════════════════
+// Rural DTN Message Composer
+// Create and send bundles (for demo; real app would use WASM module).
+// ═══════════════════════════════════════════════════════════════════
 
-// ❌ BUGGY PATTERN - Timestamp in render
-export function BuggyTimestampComponent() {
-  const renderTime = new Date().toISOString();
-  
+export function DtnMessageComposer({ onSend, villages = ['village_a', 'village_b', 'health_center'] }) {
+  const [from, setFrom] = useState(villages[0]);
+  const [to, setTo] = useState(villages[1]);
+  const [payload, setPayload] = useState('');
+
+  const handleSend = useCallback(() => {
+    if (!payload.trim()) return;
+    const bundle = {
+      id: `bundle-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      source: from,
+      destination: to,
+      payload: payload.trim(),
+      created_at: Date.now(),
+      hop_count: 0,
+    };
+    onSend?.(bundle);
+    setPayload('');
+  }, [from, to, payload, onSend]);
+
   return (
-    <div>
-      <p>Rendered at: {renderTime}</p>
-      {/* Server and client will show different times! */}
+    <div style={{ padding: 16, background: '#1a1f2e', borderRadius: 8 }}>
+      <h4 style={{ margin: '0 0 12px', color: '#22c55e' }}>Create DTN Message</h4>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div>
+          <label>From</label>
+          <select value={from} onChange={(e) => setFrom(e.target.value)} style={{ marginLeft: 8 }}>
+            {villages.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label>To</label>
+          <select value={to} onChange={(e) => setTo(e.target.value)} style={{ marginLeft: 8 }}>
+            {villages.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label>Message</label>
+          <input
+            type="text"
+            value={payload}
+            onChange={(e) => setPayload(e.target.value)}
+            placeholder="e.g., Market price: rice 45/kg"
+            style={{ marginLeft: 8, padding: 8, width: 280 }}
+          />
+        </div>
+        <button onClick={handleSend} style={{ alignSelf: 'flex-start' }}>
+          Send (Store for Forward)
+        </button>
+      </div>
     </div>
   );
 }
 
-// ❌ EXTREMELY BUGGY - Multiple sources of randomness
-export function ExtremelyBuggyComponent() {
-  // All of these cause hydration mismatches!
-  const uuid = generateUUID();
-  const random1 = Math.random();
-  const random2 = Math.random() * 1000;
-  const timestamp = Date.now();
-  const randomColor = `#${Math.floor(Math.random()*16777215).toString(16)}`;
-  
+// ═══════════════════════════════════════════════════════════════════
+// Link Status Indicator
+// Shows connectivity between nodes (DOWN / INTERMITTENT / UP).
+// ═══════════════════════════════════════════════════════════════════
+
+export function LinkStatusBadge({ status, label }) {
+  const config = {
+    0: { bg: '#ef4444', text: 'DOWN' },
+    1: { bg: '#f59e0b', text: 'INTERMITTENT' },
+    2: { bg: '#22c55e', text: 'UP' },
+  };
+  const c = config[status] ?? config[0];
   return (
-    <div style={{ backgroundColor: randomColor }}>
-      <h3>ID: {uuid}</h3>
-      <p>Random 1: {random1}</p>
-      <p>Random 2: {random2}</p>
-      <p>Timestamp: {timestamp}</p>
-      <button onClick={() => console.log('Click')}>
-        This button won't work!
-      </button>
-    </div>
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '4px 10px',
+        borderRadius: 6,
+        background: c.bg,
+        color: status === 2 ? '#1a1f2e' : 'white',
+        fontSize: 12,
+        fontWeight: 600,
+      }}
+    >
+      {label}: {c.text}
+    </span>
   );
 }
 
-// ✅ CORRECT IMPLEMENTATION - Fix #1: useEffect for client-only values
-export function FixedComponentWithUseEffect() {
-  const [hydrationData, setHydrationData] = useState(null);
-  
-  useEffect(() => {
-    // Only runs on client after hydration is complete
-    setHydrationData({
-      session_id: generateUUID(),
-      random_number: Math.random(),
-      timestamp: Date.now(),
-      component_key: `comp-${Math.random()}-${Date.now()}`,
-    });
+// ═══════════════════════════════════════════════════════════════════
+// Rural DTN Dashboard
+// Full demo page combining composer, queue, and status.
+// ═══════════════════════════════════════════════════════════════════
+
+export default function RuralDtnDashboard() {
+  const [bundles, setBundles] = useState([]);
+  const [linkStatus, setLinkStatus] = useState({ a: 0, b: 0 });
+
+  const handleSend = useCallback((bundle) => {
+    setBundles((prev) => [...prev, bundle]);
   }, []);
-  
-  if (!hydrationData) {
-    return <div>Loading...</div>; // Server renders this
-  }
-  
-  return (
-    <div className="hydration-component">
-      <h2>Fixed Component</h2>
-      <p>Session ID: {hydrationData.session_id}</p>
-      <p>Random Number: {hydrationData.random_number.toFixed(10)}</p>
-      <p>Timestamp: {hydrationData.timestamp}</p>
-      <button onClick={() => alert('This works!')}>Click Me!</button>
-    </div>
-  );
-}
 
-// ✅ CORRECT IMPLEMENTATION - Fix #2: Server-side props
-export async function getServerSideProps() {
-  // Generate stable values on the server
-  const stableData = {
-    session_id: generateUUID(),
-    random_number: Math.random(),
-    timestamp: Date.now(),
-  };
-  
-  return {
-    props: {
-      hydrationData: stableData,
-    },
-  };
-}
-
-export function FixedComponentWithProps({ hydrationData }) {
-  // Uses the same values passed from server
-  return (
-    <div className="hydration-component">
-      <h2>Fixed Component with Props</h2>
-      <p>Session ID: {hydrationData.session_id}</p>
-      <p>Random Number: {hydrationData.random_number.toFixed(10)}</p>
-      <p>Timestamp: {hydrationData.timestamp}</p>
-      <button onClick={() => alert('This works too!')}>Click Me!</button>
-    </div>
-  );
-}
-
-// ✅ CORRECT IMPLEMENTATION - Fix #3: Conditional client-side rendering
-export function FixedComponentWithMountCheck() {
-  const [isMounted, setIsMounted] = useState(false);
-  
-  useEffect(() => {
-    setIsMounted(true);
+  const simulateConnectivity = useCallback(() => {
+    setLinkStatus((prev) => ({
+      a: (prev.a + 1) % 3,
+      b: (prev.b + 2) % 3,
+    }));
   }, []);
-  
-  // Don't render random content until client-side mount
-  if (!isMounted) {
-    return <div>Preparing component...</div>;
-  }
-  
-  const hydrationData = {
-    session_id: generateUUID(),
-    random_number: Math.random(),
-    timestamp: Date.now(),
-  };
-  
+
   return (
-    <div className="hydration-component">
-      <h2>Fixed Component (Client Only)</h2>
-      <p>Session ID: {hydrationData.session_id}</p>
-      <p>Random Number: {hydrationData.random_number.toFixed(10)}</p>
-      <p>Timestamp: {hydrationData.timestamp}</p>
-      <button onClick={() => alert('This works perfectly!')}>Click Me!</button>
+    <div style={{ padding: 24, maxWidth: 800, margin: '0 auto', fontFamily: 'system-ui' }}>
+      <h1 style={{ color: '#22c55e' }}>Rural DTN Dashboard</h1>
+      <p style={{ color: '#94a3b8' }}>
+        Delay-Tolerant Networking for intermittent rural connectivity. Messages are stored locally
+        and forwarded when links become available.
+      </p>
+
+      <div style={{ marginBottom: 24 }}>
+        <DtnMessageComposer onSend={handleSend} />
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <h3 style={{ marginBottom: 8 }}>Link Status</h3>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
+          <LinkStatusBadge status={linkStatus.a} label="Village A ↔ Relay" />
+          <LinkStatusBadge status={linkStatus.b} label="Relay ↔ Village B" />
+        </div>
+        <button onClick={simulateConnectivity} style={{ background: '#252b3b', color: '#e2e8f0', border: '2px solid #475569' }}>
+          Simulate Time Step (Change Connectivity)
+        </button>
+      </div>
+
+      <div>
+        <h3 style={{ marginBottom: 8 }}>Message Queue ({bundles.length})</h3>
+        {bundles.length === 0 ? (
+          <p style={{ color: '#94a3b8' }}>No messages. Create one above.</p>
+        ) : (
+          bundles.map((b) => <DtnBundleCard key={b.id} bundle={b} />)
+        )}
+      </div>
+
+      <div style={{ marginTop: 32, padding: 16, background: '#0f1219', borderRadius: 8 }}>
+        <h4>Use Cases in Rural Regions</h4>
+        <ul>
+          <li>Healthcare: Patient records, lab results</li>
+          <li>Agriculture: Market prices, weather alerts</li>
+          <li>Education: Offline content sync</li>
+          <li>Emergency: Alerts via intermittent links</li>
+        </ul>
+      </div>
     </div>
   );
 }
-
-// Utility function used in examples
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
-function handleClick() {
-  console.log('Button clicked!');
-  const countElement = document.getElementById('click-count');
-  if (countElement) {
-    const currentCount = parseInt(countElement.textContent.split(': ')[1] || '0');
-    countElement.textContent = `Clicks: ${currentCount + 1}`;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Example Next.js Page Component using the buggy module
-// ═══════════════════════════════════════════════════════════════════
-
-export default function HydrationMismatchDemoPage() {
-  return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>🐛 Hydration Mismatch Examples</h1>
-      
-      <section>
-        <h2>❌ Buggy Components (Will Cause Hydration Errors)</h2>
-        <BuggyHydrationComponent />
-        <BuggyButtonComponent />
-        <BuggyTimestampComponent />
-        <ExtremelyBuggyComponent />
-      </section>
-      
-      <section>
-        <h2>✅ Fixed Components (Properly Handle Random Values)</h2>
-        <FixedComponentWithUseEffect />
-        <FixedComponentWithMountCheck />
-      </section>
-      
-      <section>
-        <h2>📝 Expected Console Errors from Buggy Components:</h2>
-        <pre style={{ 
-          backgroundColor: '#ffe6e6', 
-          padding: '15px', 
-          borderRadius: '5px',
-          overflow: 'auto'
-        }}>
-{`Warning: Text content did not match. Server: "550e8400-e29b..." Client: "8f7d6c5b-4a3e..."
-Warning: Prop \`data-session\` did not match. Server: "550e8400..." Client: "8f7d6c5b..."
-Uncaught Error: Hydration failed because the initial UI does not match what was rendered on the server.
-Uncaught Error: There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.`}
-        </pre>
-      </section>
-      
-      <section>
-        <h2>🔍 How to Verify the Bug:</h2>
-        <ol>
-          <li>Open browser DevTools Console</li>
-          <li>Look for hydration warnings (in development mode)</li>
-          <li>Try clicking buttons in buggy components - they may not work</li>
-          <li>Compare with fixed components - their buttons should work</li>
-          <li>Check the HTML source vs rendered DOM - values will differ</li>
-        </ol>
-      </section>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Explanation Comments
-// ═══════════════════════════════════════════════════════════════════
-
-/*
- * WHY THIS BUG HAPPENS:
- * 
- * 1. Next.js renders the component on the server
- *    - Calls Math.random(), gets 0.7234
- *    - Generates HTML: <span>0.7234</span>
- * 
- * 2. HTML is sent to the browser
- * 
- * 3. React hydrates the component on the client
- *    - Calls Math.random() again, gets 0.9876
- *    - Expects to find: <span>0.9876</span>
- *    - Actually finds: <span>0.7234</span>
- * 
- * 4. React detects mismatch and throws error
- *    - Tries to recover by re-rendering
- *    - Event handlers may not attach correctly
- *    - Interactive elements become non-functional
- * 
- * WHY IT'S HARD TO DEBUG:
- * 
- * - The page visually appears correct
- * - No obvious errors in production builds (only warnings in dev)
- * - Buttons look clickable but do nothing
- * - Intermittent failures make it hard to reproduce
- * - The real issue is in the React reconciliation layer
- */

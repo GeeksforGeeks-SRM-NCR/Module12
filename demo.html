@@ -3,267 +3,316 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hydration Mismatch Bug Demo</title>
+    <title>DTN for Rural Connectivity - Demo</title>
     <style>
+        :root {
+            --bg-dark: #1a1f2e;
+            --bg-card: #252b3b;
+            --accent: #22c55e;
+            --accent-dim: #16a34a;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+        }
+        * { box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 50px auto;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            margin: 0;
+            padding: 24px;
+            line-height: 1.6;
+        }
+        .container { max-width: 960px; margin: 0 auto; }
+        h1 { font-size: 1.75rem; margin: 0 0 8px; }
+        h2 { font-size: 1.25rem; margin: 24px 0 12px; color: var(--accent); }
+        .subtitle { color: var(--text-muted); margin-bottom: 24px; }
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
             padding: 20px;
-            background-color: #f5f5f5;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
         }
-        
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .hydration-component {
-            border: 2px solid #007bff;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 5px;
-            background-color: #f0f8ff;
-        }
-        
-        .error-box {
-            background-color: #ffe6e6;
-            border: 2px solid #ff4444;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 5px;
-        }
-        
-        .warning {
-            background-color: #fff3cd;
-            border: 2px solid #ffc107;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 5px;
-        }
-        
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px 0;
-        }
-        
-        button:hover {
-            background-color: #0056b3;
-        }
-        
-        #click-count {
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e9ecef;
-            border-radius: 3px;
-        }
-        
-        .code-block {
-            background-color: #272822;
-            color: #f8f8f2;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-        }
-        
         .comparison {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 20px 0;
+            gap: 16px;
+            margin: 16px 0;
         }
-        
-        .comparison div {
-            padding: 15px;
-            border-radius: 5px;
+        @media (max-width: 640px) { .comparison { grid-template-columns: 1fr; } }
+        .comparison > div {
+            padding: 16px;
+            border-radius: 8px;
+            border: 2px solid;
         }
-        
-        .server-side {
-            background-color: #d4edda;
-            border: 2px solid #28a745;
+        .traditional {
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.08);
         }
-        
-        .client-side {
-            background-color: #f8d7da;
-            border: 2px solid #dc3545;
+        .dtn {
+            border-color: var(--accent);
+            background: rgba(34, 197, 94, 0.08);
         }
+        .network-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 24px;
+            flex-wrap: wrap;
+        }
+        .node {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .village { background: #3b82f6; color: white; }
+        .relay { background: var(--accent); color: #1a1f2e; }
+        .link {
+            width: 24px;
+            height: 2px;
+            background: var(--text-muted);
+            position: relative;
+        }
+        .link.up { background: var(--accent); }
+        .link.down { background: var(--danger); opacity: 0.6; }
+        .simulator { margin-top: 20px; }
+        button {
+            background: var(--accent);
+            color: var(--bg-dark);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button:hover { background: var(--accent-dim); }
+        button.secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            border: 2px solid var(--text-muted);
+        }
+        .log {
+            background: #0f1219;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+        .log-entry { margin: 4px 0; }
+        .log-entry.store { color: var(--warning); }
+        .log-entry.forward { color: var(--accent); }
+        .log-entry.fail { color: var(--danger); }
+        .message-queue {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .message-item {
+            background: #0f1219;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            border-left: 4px solid var(--accent);
+        }
+        ul { padding-left: 20px; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-down { background: var(--danger); }
+        .badge-up { background: var(--accent); color: #1a1f2e; }
+        .badge-intermittent { background: var(--warning); color: #1a1f2e; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🐛 Hydration Mismatch Bug Demonstration</h1>
-        
-        <div class="warning">
-            <strong>⚠️ Warning:</strong> This page demonstrates a critical hydration mismatch bug.
-            The component below may appear to render correctly, but interactions (like button clicks) 
-            will likely fail due to React's hydration error.
-        </div>
-        
-        <h2>The Bug Scenario</h2>
-        <p>
-            This module simulates a Server-Side Rendering (SSR) hydration mismatch bug where:
-        </p>
-        <ol>
-            <li>The server renders HTML with random values (UUID, Math.random(), timestamp)</li>
-            <li>The client-side JavaScript tries to "hydrate" the same component</li>
-            <li>During hydration, the component generates NEW random values</li>
-            <li>React detects a mismatch between server HTML and client virtual DOM</li>
-            <li><strong>Result: Event listeners don't attach properly - buttons won't work!</strong></li>
-        </ol>
-        
-        <h2>Visual Comparison</h2>
-        <div class="comparison">
-            <div class="server-side">
-                <h3>Server Render</h3>
-                <p><strong>Session:</strong> 550e8400-e29b-41d4-a716-446655440000</p>
-                <p><strong>Random:</strong> 0.7234856789</p>
-                <p><strong>Timestamp:</strong> 1708167440000</p>
-            </div>
-            <div class="client-side">
-                <h3>Client Hydration</h3>
-                <p><strong>Session:</strong> 8f7d6c5b-4a3e-2b1c-0d9f-8e7a6b5c4d3e</p>
-                <p><strong>Random:</strong> 0.9876543210</p>
-                <p><strong>Timestamp:</strong> 1708167440157</p>
-            </div>
-        </div>
-        
-        <div class="error-box">
-            <strong>❌ Hydration Error:</strong> The values don't match! React throws an error:
-            <pre class="code-block">Warning: Text content did not match. Server: "0.7234856789" Client: "0.9876543210"</pre>
-        </div>
-        
-        <h2>The Buggy Component</h2>
-        <p><em>Try clicking the button below - it might not work due to hydration mismatch!</em></p>
-        
-        <!-- This div simulates what would be rendered by the server -->
-        <div id="root">
-            <!-- Server-rendered content would go here -->
-            <div class="hydration-component" data-session="server-generated-uuid" data-key="comp-0.5-1708167440000">
-                <h2>Hydration Test Component</h2>
-                <p>Session ID: <span id="session-display">server-generated-uuid</span></p>
-                <p>Random Number: <span id="random-display">0.5234567890</span></p>
-                <p>Timestamp: <span id="timestamp-display">1708167440000</span></p>
-                <button id="test-button" onclick="handleClick()">Click Me!</button>
-                <div id="click-count">Clicks: 0</div>
-            </div>
-        </div>
-        
-        <h2>How to Fix This Bug</h2>
-        <div class="code-block">
-// ❌ WRONG: Generating random values during render
-function HydrationComponent() {
-    const sessionId = generateUUID(); // Different on server vs client!
-    const randomNum = Math.random();  // Different on server vs client!
-    return &lt;div&gt;{sessionId} - {randomNum}&lt;/div&gt;;
-}
+        <h1>📡 Delay-Tolerant Networking (DTN)</h1>
+        <p class="subtitle">Solving network problems in rural regions through store-and-forward messaging</p>
 
-// ✅ CORRECT: Use stable values or useEffect for client-only randomness
-function HydrationComponent() {
-    const [sessionId, setSessionId] = useState(null);
-    
-    useEffect(() => {
-        // Only run on client after hydration
-        setSessionId(generateUUID());
-    }, []);
-    
-    return &lt;div&gt;{sessionId || 'Loading...'}&lt;/div&gt;;
-}
-        </div>
-        
-        <h2>Root Cause Analysis</h2>
-        <ul>
-            <li><strong>Math.random()</strong> returns different values on each execution</li>
-            <li><strong>Date.now()</strong> returns different timestamps at different times</li>
-            <li><strong>UUID generation</strong> creates unique IDs each time</li>
-            <li>All these are called during component render on BOTH server and client</li>
-            <li>React expects the initial render to produce identical output</li>
-        </ul>
-        
-        <div class="error-box">
-            <h3>⚠️ Why This Is Difficult to Debug:</h3>
+        <div class="card">
+            <h2>Rural Network Challenges</h2>
             <ul>
-                <li>The UI might <em>look</em> correct visually</li>
-                <li>No obvious runtime errors in production builds</li>
-                <li>Event handlers silently fail to attach</li>
-                <li>Buttons appear clickable but do nothing</li>
-                <li>Only shows hydration warnings in development mode</li>
+                <li><strong>Intermittent connectivity</strong> — Power cuts, weak signal, infrastructure gaps</li>
+                <li><strong>Long delays</strong> — Satellite links, high-latency backhauls</li>
+                <li><strong>Opportunistic links</strong> — Bus with WiFi, mobile data collector visiting villages</li>
+                <li><strong>No end-to-end path</strong> — Source and destination never connected at the same time</li>
             </ul>
         </div>
-        
-        <button id="demo-button" onclick="demonstrateIssue()">
-            Simulate Hydration Mismatch
-        </button>
-        <div id="demo-output"></div>
+
+        <div class="card">
+            <h2>Traditional vs DTN Approach</h2>
+            <div class="comparison">
+                <div class="traditional">
+                    <h3>❌ Traditional TCP/IP</h3>
+                    <p>Requires continuous end-to-end connection. If the link drops, the message is lost. Rural users often cannot send data when connectivity is absent.</p>
+                </div>
+                <div class="dtn">
+                    <h3>✅ DTN (Store-and-Forward)</h3>
+                    <p>Messages are stored locally when the link is down. When connectivity appears (e.g., relay passes by), stored bundles are forwarded. No data loss; delivery is eventual.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>DTN Network Simulation</h2>
+            <p>Village A and Village B have no direct link. A relay (e.g., bus, drone, data mule) occasionally connects to each. Messages are stored and forwarded when the relay is in range.</p>
+            <div class="network-diagram">
+                <div class="node village">Village A</div>
+                <div class="link" id="link-a"></div>
+                <div class="node relay">Relay</div>
+                <div class="link" id="link-b"></div>
+                <div class="node village">Village B</div>
+            </div>
+            <p><span class="badge badge-down" id="status-a">A↔Relay: DOWN</span> &nbsp; <span class="badge badge-down" id="status-b">Relay↔B: DOWN</span></p>
+            <div class="simulator">
+                <button id="guided-demo-btn" onclick="runGuidedDemo()">▶ Run Guided Demo</button>
+                <button onclick="sendMessage()">Send Message (A → B)</button>
+                <button class="secondary" onclick="tickConnectivity()">Simulate Time Step (Change Connectivity)</button>
+                <button class="secondary" onclick="forwardBundles()">Forward Stored Bundles</button>
+                <div class="message-queue" id="queue"></div>
+                <div class="log" id="log"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Use Cases in Rural Regions</h2>
+            <ul>
+                <li><strong>Healthcare</strong> — Patient records, lab results, telemedicine requests forwarded when connectivity is available</li>
+                <li><strong>Agriculture</strong> — Market prices, weather alerts, advisory messages</li>
+                <li><strong>Education</strong> — Offline learning content synced when a relay visits</li>
+                <li><strong>Emergency</strong> — Alerts stored locally and propagated through intermittent links</li>
+            </ul>
+        </div>
     </div>
-    
+
     <script>
-        let clickCount = 0;
-        
-        function handleClick() {
-            clickCount++;
-            const countElement = document.getElementById('click-count');
-            if (countElement) {
-                countElement.textContent = `Clicks: ${clickCount}`;
+        const villages = { A: [], B: [], relay: [] };
+        let linkA = 0, linkB = 0; // 0=down, 1=intermittent, 2=up
+        let timeStep = 0;
+        const logEl = document.getElementById('log');
+        const queueEl = document.getElementById('queue');
+
+        function log(msg, cls = '') {
+            const e = document.createElement('div');
+            e.className = 'log-entry' + (cls ? ' ' + cls : '');
+            e.textContent = `[t=${timeStep}] ${msg}`;
+            logEl.appendChild(e);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateLinkDisplay() {
+            const labels = ['DOWN', 'INTERMITTENT', 'UP'];
+            const badges = ['badge-down', 'badge-intermittent', 'badge-up'];
+            document.getElementById('status-a').textContent = 'A↔Relay: ' + labels[linkA];
+            document.getElementById('status-a').className = 'badge ' + badges[linkA];
+            document.getElementById('status-b').textContent = 'Relay↔B: ' + labels[linkB];
+            document.getElementById('status-b').className = 'badge ' + badges[linkB];
+            document.getElementById('link-a').className = 'link ' + (linkA >= 1 ? 'up' : 'down');
+            document.getElementById('link-b').className = 'link ' + (linkB >= 1 ? 'up' : 'down');
+        }
+
+        function deterministicStatus(step, seed) {
+            let s = (seed + Math.imul(step, 0x9E3779B9)) >>> 0;
+            s = Math.imul(s ^ (s >>> 16), 0x85ebca6b);
+            s = Math.imul((s ^ (s >>> 13)) >>> 0, 0xc2b2ae35);
+            const p = ((s ^ (s >>> 16)) >>> 0) % 100;
+            if (p < 15) return 2;
+            if (p < 40) return 1;
+            return 0;
+        }
+
+        function tickConnectivity() {
+            timeStep++;
+            linkA = deterministicStatus(timeStep, 42);
+            linkB = deterministicStatus(timeStep, 99);
+            updateLinkDisplay();
+            log(`Connectivity updated: A↔Relay=${['DOWN','INTERMITTENT','UP'][linkA]}, Relay↔B=${['DOWN','INTERMITTENT','UP'][linkB]}`);
+        }
+
+        function sendMessage() {
+            const payload = 'Message from Village A at t=' + timeStep;
+            const bundle = {
+                id: 'bundle-' + Date.now(),
+                source: 'village_a',
+                destination: 'village_b',
+                payload,
+                created_at: Date.now(),
+                hop_count: 0
+            };
+            villages.A.push(bundle);
+            log('STORE: Message stored at Village A (no direct path to B)', 'store');
+            renderQueue();
+        }
+
+        function forwardBundles() {
+            let forwarded = 0;
+            if (linkA >= 1 && villages.A.length > 0) {
+                const b = villages.A.shift();
+                b.hop_count = (b.hop_count || 0) + 1;
+                villages.relay.push(b);
+                log('FORWARD: Village A → Relay', 'forward');
+                forwarded++;
             }
+            if (linkB >= 1 && villages.relay.length > 0) {
+                const b = villages.relay.shift();
+                b.hop_count = (b.hop_count || 0) + 1;
+                villages.B.push(b);
+                log('FORWARD: Relay → Village B (delivered!)', 'forward');
+                forwarded++;
+            }
+            if (forwarded === 0 && (villages.A.length || villages.relay.length)) {
+                log('FAIL: No connectivity — bundles remain stored', 'fail');
+            }
+            renderQueue();
         }
-        
-        function demonstrateIssue() {
-            const output = document.getElementById('demo-output');
-            
-            // Simulate server-side render
-            const serverSession = generateUUID();
-            const serverRandom = Math.random();
-            const serverTimestamp = Date.now();
-            
-            // Small delay to simulate network time
-            setTimeout(() => {
-                // Simulate client-side hydration
-                const clientSession = generateUUID();
-                const clientRandom = Math.random();
-                const clientTimestamp = Date.now();
-                
-                output.innerHTML = `
-                    <div class="error-box" style="margin-top: 20px;">
-                        <h3>Mismatch Detected!</h3>
-                        <p><strong>Server Session:</strong> ${serverSession}</p>
-                        <p><strong>Client Session:</strong> ${clientSession}</p>
-                        <p><strong>Match:</strong> ${serverSession === clientSession ? '✅' : '❌'}</p>
-                        <br>
-                        <p><strong>Server Random:</strong> ${serverRandom}</p>
-                        <p><strong>Client Random:</strong> ${clientRandom}</p>
-                        <p><strong>Match:</strong> ${serverRandom === clientRandom ? '✅' : '❌'}</p>
-                        <br>
-                        <p><strong>Server Timestamp:</strong> ${serverTimestamp}</p>
-                        <p><strong>Client Timestamp:</strong> ${clientTimestamp}</p>
-                        <p><strong>Difference:</strong> ${clientTimestamp - serverTimestamp}ms</p>
-                    </div>
-                `;
-            }, 100);
+
+        function renderQueue() {
+            const all = [
+                ...villages.A.map(b => ({ loc: 'Village A', b })),
+                ...villages.relay.map(b => ({ loc: 'Relay', b })),
+                ...villages.B.map(b => ({ loc: 'Village B (delivered)', b }))
+            ];
+            queueEl.innerHTML = all.length
+                ? all.map(({ loc, b }) => `<div class="message-item">${loc}: "${b.payload}" (hops: ${b.hop_count || 0})</div>`).join('')
+                : '<div class="message-item" style="opacity:0.7">No pending messages. Send one to see store-and-forward.</div>';
         }
-        
-        function generateUUID() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                const r = Math.random() * 16 | 0;
-                const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
+
+        async function runGuidedDemo() {
+            const btn = document.getElementById('guided-demo-btn');
+            if (btn) btn.disabled = true;
+            log('Starting guided demo...', 'forward');
+            sendMessage();
+            await sleep(800);
+            for (let tries = 0; tries < 60; tries++) {
+                tickConnectivity();
+                await sleep(350);
+                forwardBundles();
+                if (villages.B.length > 0) {
+                    log('Demo complete! Message delivered to Village B.', 'forward');
+                    if (btn) btn.disabled = false;
+                    return;
+                }
+            }
+            log('Guided demo finished. Message may still be in transit—try Forward again after more ticks.', 'fail');
+            if (btn) btn.disabled = false;
         }
-        
-        // Log to console when page loads
-        console.log('%c⚠️ Hydration Mismatch Demo Loaded', 'color: red; font-size: 16px; font-weight: bold;');
-        console.log('This page demonstrates how random values cause hydration errors in SSR applications.');
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        updateLinkDisplay();
+        log('DTN demo ready. Click "Run Guided Demo" or send a message and manually tick/forward.');
+        renderQueue();
     </script>
 </body>
 </html>

@@ -1,44 +1,46 @@
 #!/bin/bash
 
-# Build script for Hydration Mismatch Module
-# This script compiles the Rust code to WebAssembly
+# Build script for Rural DTN Module (Delay-Tolerant Networking)
+# Compiles Rust code to WebAssembly for browser use
 
 set -e
 
-echo "🦀 Building Hydration Mismatch Module (Rust → WASM)"
-echo "======================================================"
+echo "📡 Building Rural DTN Module (Rust → WASM)"
+echo "=========================================="
 
 # Check if wasm-pack is installed
 if ! command -v wasm-pack &> /dev/null; then
     echo "❌ wasm-pack is not installed!"
-    echo "📦 Installing wasm-pack..."
-    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+    echo "📦 Install with: cargo install wasm-pack"
+    echo "   Or: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh"
+    exit 1
 fi
 
 # Check if Rust is installed
 if ! command -v cargo &> /dev/null; then
     echo "❌ Rust is not installed!"
-    echo "Please install Rust from: https://rustup.rs/"
+    echo "   Install from: https://rustup.rs/"
     exit 1
 fi
 
 echo "✅ Dependencies found"
 echo ""
 
-# Build for web target (default)
+# Build for web target
 echo "🔨 Building for web target..."
-wasm-pack build --target web
+wasm-pack build --target web --out-dir pkg
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful!"
     echo ""
     echo "📦 Output directory: pkg/"
     echo ""
-    echo "To use in a web application:"
-    echo "  import init, { HydrationData } from './pkg/hydration_mismatch_module.js';"
+    echo "To run the demo:"
+    echo "  npm run serve"
+    echo "  Then open http://localhost:3000/demo.html"
     echo ""
-    echo "⚠️  WARNING: This module is intentionally buggy!"
-    echo "    It will cause hydration mismatch errors in SSR applications."
+    echo "To use in a web app:"
+    echo "  import init, { DtnBundle } from './pkg/rural_dtn_module.js';"
 else
     echo "❌ Build failed!"
     exit 1
